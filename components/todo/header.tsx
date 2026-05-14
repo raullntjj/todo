@@ -18,7 +18,7 @@ export function Header({ stats, onImport, onExport, onNewGroup }: HeaderProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground">
             <FolderOpen className="h-4 w-4 text-background" />
           </div>
-          <h1 className="text-lg font-semibold tracking-tight">Grupo de Tarefas</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Todo</h1>
         </div>
         <div className="flex items-center gap-3">
           {stats.total > 0 && (
