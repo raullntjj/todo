@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Trash2, ChevronDown, ChevronRight, Zap, Calendar } from "lucide-react"
+import { Plus, Trash2, ChevronDown, ChevronRight, Zap, Calendar, Pencil, ChevronUp, Check, X } from "lucide-react"
 
 interface Task {
   id: string
@@ -29,6 +29,8 @@ export default function TodoApp() {
   const [newSprintName, setNewSprintName] = useState("")
   const [newTaskInputs, setNewTaskInputs] = useState<Record<string, { title: string; step: string }>>({})
   const [mounted, setMounted] = useState(false)
+  const [editingTask, setEditingTask] = useState<{ sprintId: string; taskId: string } | null>(null)
+  const [editValues, setEditValues] = useState<{ title: string; step: string }>({ title: "", step: "" })
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
@@ -104,6 +106,62 @@ export default function TodoApp() {
 
   const deleteSprint = (sprintId: string) => {
     setSprints(sprints.filter((sprint) => sprint.id !== sprintId))
+  }
+
+  const startEditTask = (sprintId: string, task: Task) => {
+    setEditingTask({ sprintId, taskId: task.id })
+    setEditValues({ title: task.title, step: task.step })
+  }
+
+  const saveEditTask = () => {
+    if (!editingTask || !editValues.title.trim()) return
+    setSprints(
+      sprints.map((sprint) =>
+        sprint.id === editingTask.sprintId
+          ? {
+              ...sprint,
+              tasks: sprint.tasks.map((task) =>
+                task.id === editingTask.taskId
+                  ? { ...task, title: editValues.title.trim(), step: editValues.step.trim() }
+                  : task
+              ),
+            }
+          : sprint
+      )
+    )
+    setEditingTask(null)
+    setEditValues({ title: "", step: "" })
+  }
+
+  const cancelEditTask = () => {
+    setEditingTask(null)
+    setEditValues({ title: "", step: "" })
+  }
+
+  const moveTaskUp = (sprintId: string, taskId: string) => {
+    setSprints(
+      sprints.map((sprint) => {
+        if (sprint.id !== sprintId) return sprint
+        const index = sprint.tasks.findIndex((t) => t.id === taskId)
+        if (index <= 0) return sprint
+        const newTasks = [...sprint.tasks]
+        ;[newTasks[index - 1], newTasks[index]] = [newTasks[index], newTasks[index - 1]]
+        return { ...sprint, tasks: newTasks }
+      })
+    )
+  }
+
+  const moveTaskDown = (sprintId: string, taskId: string) => {
+    setSprints(
+      sprints.map((sprint) => {
+        if (sprint.id !== sprintId) return sprint
+        const index = sprint.tasks.findIndex((t) => t.id === taskId)
+        if (index < 0 || index >= sprint.tasks.length - 1) return sprint
+        const newTasks = [...sprint.tasks]
+        ;[newTasks[index], newTasks[index + 1]] = [newTasks[index + 1], newTasks[index]]
+        return { ...sprint, tasks: newTasks }
+      })
+    )
   }
 
   const toggleCollapse = (sprintId: string) => {
@@ -231,47 +289,128 @@ export default function TodoApp() {
                     {/* Lista de tasks */}
                     {sprint.tasks.length > 0 && (
                       <div className="mb-4 divide-y divide-border">
-                        {sprint.tasks.map((task) => (
-                          <div
-                            key={task.id}
-                            className={`group flex items-start gap-4 py-3 transition-colors ${
-                              task.completed ? "opacity-50" : ""
-                            }`}
-                          >
-                            <Checkbox
-                              checked={task.completed}
-                              onCheckedChange={() => toggleTask(sprint.id, task.id)}
-                              className="mt-0.5 border-muted-foreground data-[state=checked]:bg-[oklch(0.72_0.19_145)] data-[state=checked]:border-[oklch(0.72_0.19_145)]"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p
-                                className={`text-sm font-medium leading-tight ${
-                                  task.completed ? "line-through text-muted-foreground" : "text-foreground"
-                                }`}
-                              >
-                                {task.title}
-                              </p>
-                              {task.step && (
-                                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                                  {task.step}
-                                </p>
+                        {sprint.tasks.map((task, taskIndex) => {
+                          const isEditing = editingTask?.sprintId === sprint.id && editingTask?.taskId === task.id
+                          
+                          return (
+                            <div
+                              key={task.id}
+                              className={`group flex items-start gap-4 py-3 transition-colors ${
+                                task.completed ? "opacity-50" : ""
+                              }`}
+                            >
+                              <Checkbox
+                                checked={task.completed}
+                                onCheckedChange={() => toggleTask(sprint.id, task.id)}
+                                className="mt-0.5 border-muted-foreground data-[state=checked]:bg-[oklch(0.72_0.19_145)] data-[state=checked]:border-[oklch(0.72_0.19_145)]"
+                                disabled={isEditing}
+                              />
+                              
+                              {isEditing ? (
+                                <div className="flex-1 min-w-0 space-y-2">
+                                  <Input
+                                    value={editValues.title}
+                                    onChange={(e) => setEditValues({ ...editValues, title: e.target.value })}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") saveEditTask()
+                                      if (e.key === "Escape") cancelEditTask()
+                                    }}
+                                    className="h-8 text-sm"
+                                    autoFocus
+                                  />
+                                  <Input
+                                    value={editValues.step}
+                                    onChange={(e) => setEditValues({ ...editValues, step: e.target.value })}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") saveEditTask()
+                                      if (e.key === "Escape") cancelEditTask()
+                                    }}
+                                    placeholder="Passo ou descricao (opcional)"
+                                    className="h-7 text-xs"
+                                  />
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="sm"
+                                      className="h-7 px-2 bg-[oklch(0.72_0.19_145)] hover:bg-[oklch(0.65_0.19_145)] text-white"
+                                      onClick={saveEditTask}
+                                    >
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Salvar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2"
+                                      onClick={cancelEditTask}
+                                    >
+                                      <X className="h-3 w-3 mr-1" />
+                                      Cancelar
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex-1 min-w-0">
+                                    <p
+                                      className={`text-sm font-medium leading-tight ${
+                                        task.completed ? "line-through text-muted-foreground" : "text-foreground"
+                                      }`}
+                                    >
+                                      {task.title}
+                                    </p>
+                                    {task.step && (
+                                      <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                                        {task.step}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                    {/* Move buttons */}
+                                    <div className="flex flex-col">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                                        onClick={() => moveTaskUp(sprint.id, task.id)}
+                                        disabled={taskIndex === 0}
+                                      >
+                                        <ChevronUp className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                                        onClick={() => moveTaskDown(sprint.id, task.id)}
+                                        disabled={taskIndex === sprint.tasks.length - 1}
+                                      >
+                                        <ChevronDown className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                    <span className="text-xs font-mono text-muted-foreground">
+                                      {task.createdAt}
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                                      onClick={() => startEditTask(sprint.id, task)}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                      onClick={() => deleteTask(sprint.id, task.id)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                              <span className="text-xs font-mono text-muted-foreground">
-                                {task.createdAt}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => deleteTask(sprint.id, task.id)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
 
