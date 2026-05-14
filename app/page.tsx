@@ -3,14 +3,30 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Trash2, ChevronDown, ChevronRight, Zap, Calendar, Pencil, ChevronUp, Check, X } from "lucide-react"
+
+import { Plus, Trash2, ChevronDown, ChevronRight, Zap, Calendar, Pencil, ChevronUp } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+type TaskStatus = "todo" | "doing" | "done"
 
 interface Task {
   id: string
   title: string
   step: string
-  completed: boolean
+  status: TaskStatus
   createdAt: string
 }
 
@@ -29,8 +45,8 @@ export default function TodoApp() {
   const [newSprintName, setNewSprintName] = useState("")
   const [newTaskInputs, setNewTaskInputs] = useState<Record<string, { title: string; step: string }>>({})
   const [mounted, setMounted] = useState(false)
-  const [editingTask, setEditingTask] = useState<{ sprintId: string; taskId: string } | null>(null)
-  const [editValues, setEditValues] = useState<{ title: string; step: string }>({ title: "", step: "" })
+  const [editingTask, setEditingTask] = useState<{ sprintId: string; task: Task; taskIndex: number } | null>(null)
+  const [editValues, setEditValues] = useState<{ title: string; step: string; status: TaskStatus }>({ title: "", step: "", status: "todo" })
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
@@ -67,7 +83,7 @@ export default function TodoApp() {
       id: Date.now().toString(),
       title: input.title.trim(),
       step: input.step.trim(),
-      completed: false,
+      status: "todo",
       createdAt: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
     }
 
@@ -79,15 +95,19 @@ export default function TodoApp() {
     setNewTaskInputs({ ...newTaskInputs, [sprintId]: { title: "", step: "" } })
   }
 
-  const toggleTask = (sprintId: string, taskId: string) => {
+  const cycleTaskStatus = (sprintId: string, taskId: string) => {
     setSprints(
       sprints.map((sprint) =>
         sprint.id === sprintId
           ? {
               ...sprint,
-              tasks: sprint.tasks.map((task) =>
-                task.id === taskId ? { ...task, completed: !task.completed } : task
-              ),
+              tasks: sprint.tasks.map((task) => {
+                if (task.id !== taskId) return task
+                const nextStatus: TaskStatus = 
+                  task.status === "todo" ? "doing" : 
+                  task.status === "doing" ? "done" : "todo"
+                return { ...task, status: nextStatus }
+              }),
             }
           : sprint
       )
@@ -108,9 +128,9 @@ export default function TodoApp() {
     setSprints(sprints.filter((sprint) => sprint.id !== sprintId))
   }
 
-  const startEditTask = (sprintId: string, task: Task) => {
-    setEditingTask({ sprintId, taskId: task.id })
-    setEditValues({ title: task.title, step: task.step })
+  const startEditTask = (sprintId: string, task: Task, taskIndex: number) => {
+    setEditingTask({ sprintId, task, taskIndex })
+    setEditValues({ title: task.title, step: task.step, status: task.status })
   }
 
   const saveEditTask = () => {
@@ -121,8 +141,8 @@ export default function TodoApp() {
           ? {
               ...sprint,
               tasks: sprint.tasks.map((task) =>
-                task.id === editingTask.taskId
-                  ? { ...task, title: editValues.title.trim(), step: editValues.step.trim() }
+                task.id === editingTask.task.id
+                  ? { ...task, title: editValues.title.trim(), step: editValues.step.trim(), status: editValues.status }
                   : task
               ),
             }
@@ -130,12 +150,12 @@ export default function TodoApp() {
       )
     )
     setEditingTask(null)
-    setEditValues({ title: "", step: "" })
+    setEditValues({ title: "", step: "", status: "todo" })
   }
 
-  const cancelEditTask = () => {
+  const closeEditDialog = () => {
     setEditingTask(null)
-    setEditValues({ title: "", step: "" })
+    setEditValues({ title: "", step: "", status: "todo" })
   }
 
   const moveTaskUp = (sprintId: string, taskId: string) => {
@@ -174,13 +194,29 @@ export default function TodoApp() {
 
   const getProgress = (tasks: Task[]) => {
     if (tasks.length === 0) return 0
-    return Math.round((tasks.filter((t) => t.completed).length / tasks.length) * 100)
+    return Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100)
   }
 
   const getTotalStats = () => {
     const allTasks = sprints.flatMap((s) => s.tasks)
-    const completed = allTasks.filter((t) => t.completed).length
+    const completed = allTasks.filter((t) => t.status === "done").length
     return { total: allTasks.length, completed }
+  }
+
+  const getStatusLabel = (status: TaskStatus) => {
+    switch (status) {
+      case "todo": return "A fazer"
+      case "doing": return "Fazendo"
+      case "done": return "Feito"
+    }
+  }
+
+  const getStatusColor = (status: TaskStatus) => {
+    switch (status) {
+      case "todo": return "bg-muted text-muted-foreground"
+      case "doing": return "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+      case "done": return "bg-[oklch(0.72_0.19_145)]/20 text-[oklch(0.55_0.19_145)] dark:text-[oklch(0.72_0.19_145)]"
+    }
   }
 
   if (!mounted) return null
@@ -290,124 +326,84 @@ export default function TodoApp() {
                     {sprint.tasks.length > 0 && (
                       <div className="mb-4 divide-y divide-border">
                         {sprint.tasks.map((task, taskIndex) => {
-                          const isEditing = editingTask?.sprintId === sprint.id && editingTask?.taskId === task.id
+                          const taskNumber = String(taskIndex + 1).padStart(2, "0")
                           
                           return (
                             <div
                               key={task.id}
                               className={`group flex items-start gap-4 py-3 transition-colors ${
-                                task.completed ? "opacity-50" : ""
+                                task.status === "done" ? "opacity-50" : ""
                               }`}
                             >
-                              <Checkbox
-                                checked={task.completed}
-                                onCheckedChange={() => toggleTask(sprint.id, task.id)}
-                                className="mt-0.5 border-muted-foreground data-[state=checked]:bg-[oklch(0.72_0.19_145)] data-[state=checked]:border-[oklch(0.72_0.19_145)]"
-                                disabled={isEditing}
-                              />
+                              {/* Task number */}
+                              <span className="mt-0.5 text-xs font-mono text-muted-foreground w-12 shrink-0">
+                                Task-{taskNumber}
+                              </span>
                               
-                              {isEditing ? (
-                                <div className="flex-1 min-w-0 space-y-2">
-                                  <Input
-                                    value={editValues.title}
-                                    onChange={(e) => setEditValues({ ...editValues, title: e.target.value })}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") saveEditTask()
-                                      if (e.key === "Escape") cancelEditTask()
-                                    }}
-                                    className="h-8 text-sm"
-                                    autoFocus
-                                  />
-                                  <Input
-                                    value={editValues.step}
-                                    onChange={(e) => setEditValues({ ...editValues, step: e.target.value })}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") saveEditTask()
-                                      if (e.key === "Escape") cancelEditTask()
-                                    }}
-                                    placeholder="Passo ou descricao (opcional)"
-                                    className="h-7 text-xs"
-                                  />
-                                  <div className="flex gap-1">
-                                    <Button
-                                      size="sm"
-                                      className="h-7 px-2 bg-[oklch(0.72_0.19_145)] hover:bg-[oklch(0.65_0.19_145)] text-white"
-                                      onClick={saveEditTask}
-                                    >
-                                      <Check className="h-3 w-3 mr-1" />
-                                      Salvar
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2"
-                                      onClick={cancelEditTask}
-                                    >
-                                      <X className="h-3 w-3 mr-1" />
-                                      Cancelar
-                                    </Button>
-                                  </div>
+                              {/* Status badge - clickable to cycle */}
+                              <button
+                                onClick={() => cycleTaskStatus(sprint.id, task.id)}
+                                className={`mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-medium transition-colors ${getStatusColor(task.status)}`}
+                              >
+                                {getStatusLabel(task.status)}
+                              </button>
+                              
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className={`text-sm font-medium leading-tight ${
+                                    task.status === "done" ? "line-through text-muted-foreground" : "text-foreground"
+                                  }`}
+                                >
+                                  {task.title}
+                                </p>
+                                {task.step && (
+                                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                                    {task.step}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                {/* Move buttons */}
+                                <div className="flex flex-col">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                                    onClick={() => moveTaskUp(sprint.id, task.id)}
+                                    disabled={taskIndex === 0}
+                                  >
+                                    <ChevronUp className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                                    onClick={() => moveTaskDown(sprint.id, task.id)}
+                                    disabled={taskIndex === sprint.tasks.length - 1}
+                                  >
+                                    <ChevronDown className="h-3 w-3" />
+                                  </Button>
                                 </div>
-                              ) : (
-                                <>
-                                  <div className="flex-1 min-w-0">
-                                    <p
-                                      className={`text-sm font-medium leading-tight ${
-                                        task.completed ? "line-through text-muted-foreground" : "text-foreground"
-                                      }`}
-                                    >
-                                      {task.title}
-                                    </p>
-                                    {task.step && (
-                                      <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                                        {task.step}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                                    {/* Move buttons */}
-                                    <div className="flex flex-col">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                                        onClick={() => moveTaskUp(sprint.id, task.id)}
-                                        disabled={taskIndex === 0}
-                                      >
-                                        <ChevronUp className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                                        onClick={() => moveTaskDown(sprint.id, task.id)}
-                                        disabled={taskIndex === sprint.tasks.length - 1}
-                                      >
-                                        <ChevronDown className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                    <span className="text-xs font-mono text-muted-foreground">
-                                      {task.createdAt}
-                                    </span>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                                      onClick={() => startEditTask(sprint.id, task)}
-                                    >
-                                      <Pencil className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                      onClick={() => deleteTask(sprint.id, task.id)}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </>
-                              )}
+                                <span className="text-xs font-mono text-muted-foreground">
+                                  {task.createdAt}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                                  onClick={() => startEditTask(sprint.id, task, taskIndex)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => deleteTask(sprint.id, task.id)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           )
                         })}
@@ -469,6 +465,64 @@ export default function TodoApp() {
           )}
         </div>
       </div>
+
+      {/* Edit Task Dialog */}
+      <Dialog open={!!editingTask} onOpenChange={(open) => !open && closeEditDialog()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Editar Task-{editingTask ? String(editingTask.taskIndex + 1).padStart(2, "0") : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Titulo</label>
+              <Input
+                value={editValues.title}
+                onChange={(e) => setEditValues({ ...editValues, title: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && saveEditTask()}
+                placeholder="Nome da task"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Descricao (opcional)</label>
+              <Input
+                value={editValues.step}
+                onChange={(e) => setEditValues({ ...editValues, step: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && saveEditTask()}
+                placeholder="Passo ou descricao"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <Select
+                value={editValues.status}
+                onValueChange={(value: TaskStatus) => setEditValues({ ...editValues, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todo">A fazer</SelectItem>
+                  <SelectItem value="doing">Fazendo</SelectItem>
+                  <SelectItem value="done">Feito</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeEditDialog}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={saveEditTask}
+              className="bg-[oklch(0.72_0.19_145)] hover:bg-[oklch(0.65_0.19_145)] text-white"
+            >
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
