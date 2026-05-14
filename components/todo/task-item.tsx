@@ -65,9 +65,9 @@ export function TaskItem({
       </div>
 
       {/* Task number */}
-      <span className="mt-0.5 text-xs font-mono text-muted-foreground w-12 shrink-0">
+      {/* <span className="mt-0.5 text-xs font-mono text-muted-foreground w-12 shrink-0">
         Task-{taskNumber}
-      </span>
+      </span> */}
 
       {/* Status badge - dropdown to select */}
       <DropdownMenu>

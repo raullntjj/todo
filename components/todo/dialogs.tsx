@@ -157,7 +157,7 @@ export function EditTaskDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            Editar Task-{editingTask ? String(editingTask.taskIndex + 1).padStart(2, "0") : ""}
+            Editar Task {editingTask ? `"${editingTask.task.title}"` : ""}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
