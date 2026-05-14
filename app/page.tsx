@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Trash2, ChevronDown, ChevronRight, Zap, Calendar, Pencil, ChevronUp, Circle, Clock, CheckCircle2 } from "lucide-react"
+import { Plus, Trash2, ChevronDown, ChevronRight, Calendar, Pencil, ChevronUp, Circle, Clock, CheckCircle2, Download, Upload, FolderOpen } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -36,7 +36,7 @@ interface Task {
   createdAt: string
 }
 
-interface Sprint {
+interface TaskGroup {
   id: string
   name: string
   tasks: Task[]
@@ -44,80 +44,96 @@ interface Sprint {
   collapsed: boolean
 }
 
-const STORAGE_KEY = "todo-sprints"
+const STORAGE_KEY = "todo-task-groups"
 
 export default function TodoApp() {
-  const [sprints, setSprints] = useState<Sprint[]>([])
+  const [groups, setGroups] = useState<TaskGroup[]>([])
   const [mounted, setMounted] = useState(false)
   
   // Dialog states
-  const [sprintDialogOpen, setSprintDialogOpen] = useState(false)
-  const [newSprintName, setNewSprintName] = useState("")
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false)
+  const [newGroupName, setNewGroupName] = useState("")
   
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
-  const [taskDialogSprintId, setTaskDialogSprintId] = useState<string | null>(null)
+  const [taskDialogGroupId, setTaskDialogGroupId] = useState<string | null>(null)
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [newTaskStep, setNewTaskStep] = useState("")
   
-  const [editingTask, setEditingTask] = useState<{ sprintId: string; task: Task; taskIndex: number } | null>(null)
+  const [editingTask, setEditingTask] = useState<{ groupId: string; task: Task; taskIndex: number } | null>(null)
   const [editValues, setEditValues] = useState<{ title: string; step: string; status: TaskStatus }>({ title: "", step: "", status: "todo" })
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
-      setSprints(JSON.parse(stored))
+      setGroups(JSON.parse(stored))
     }
     setMounted(true)
   }, [])
 
   useEffect(() => {
     if (mounted) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sprints))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(groups))
     }
-  }, [sprints, mounted])
+  }, [groups, mounted])
 
-  // Sprint functions
-  const openSprintDialog = () => {
-    setNewSprintName("")
-    setSprintDialogOpen(true)
+  // Group functions
+  const openGroupDialog = () => {
+    setNewGroupName("")
+    setGroupDialogOpen(true)
   }
 
-  const addSprint = () => {
-    if (!newSprintName.trim()) return
-    const newSprint: Sprint = {
+  const addGroup = () => {
+    if (!newGroupName.trim()) return
+    const newGroup: TaskGroup = {
       id: Date.now().toString(),
-      name: newSprintName.trim(),
+      name: newGroupName.trim(),
       tasks: [],
       createdAt: new Date().toLocaleDateString("pt-BR"),
       collapsed: false,
     }
-    setSprints([newSprint, ...sprints])
-    setSprintDialogOpen(false)
-    setNewSprintName("")
+    setGroups([newGroup, ...groups])
+    setGroupDialogOpen(false)
+    setNewGroupName("")
   }
 
-  const deleteSprint = (sprintId: string) => {
-    setSprints(sprints.filter((sprint) => sprint.id !== sprintId))
+  const deleteGroup = (groupId: string) => {
+    setGroups(groups.filter((group) => group.id !== groupId))
   }
 
-  const toggleCollapse = (sprintId: string) => {
-    setSprints(
-      sprints.map((sprint) =>
-        sprint.id === sprintId ? { ...sprint, collapsed: !sprint.collapsed } : sprint
+  const toggleCollapse = (groupId: string) => {
+    setGroups(
+      groups.map((group) =>
+        group.id === groupId ? { ...group, collapsed: !group.collapsed } : group
       )
     )
   }
 
+  const moveGroupUp = (groupId: string) => {
+    const index = groups.findIndex((g) => g.id === groupId)
+    if (index <= 0) return
+    const newGroups = [...groups]
+    ;[newGroups[index - 1], newGroups[index]] = [newGroups[index], newGroups[index - 1]]
+    setGroups(newGroups)
+  }
+
+  const moveGroupDown = (groupId: string) => {
+    const index = groups.findIndex((g) => g.id === groupId)
+    if (index < 0 || index >= groups.length - 1) return
+    const newGroups = [...groups]
+    ;[newGroups[index], newGroups[index + 1]] = [newGroups[index + 1], newGroups[index]]
+    setGroups(newGroups)
+  }
+
   // Task functions
-  const openTaskDialog = (sprintId: string) => {
-    setTaskDialogSprintId(sprintId)
+  const openTaskDialog = (groupId: string) => {
+    setTaskDialogGroupId(groupId)
     setNewTaskTitle("")
     setNewTaskStep("")
     setTaskDialogOpen(true)
   }
 
   const addTask = () => {
-    if (!taskDialogSprintId || !newTaskTitle.trim()) return
+    if (!taskDialogGroupId || !newTaskTitle.trim()) return
 
     const newTask: Task = {
       id: Date.now().toString(),
@@ -127,61 +143,61 @@ export default function TodoApp() {
       createdAt: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
     }
 
-    setSprints(
-      sprints.map((sprint) =>
-        sprint.id === taskDialogSprintId ? { ...sprint, tasks: [...sprint.tasks, newTask] } : sprint
+    setGroups(
+      groups.map((group) =>
+        group.id === taskDialogGroupId ? { ...group, tasks: [...group.tasks, newTask] } : group
       )
     )
     setTaskDialogOpen(false)
     setNewTaskTitle("")
     setNewTaskStep("")
-    setTaskDialogSprintId(null)
+    setTaskDialogGroupId(null)
   }
 
-  const setTaskStatus = (sprintId: string, taskId: string, status: TaskStatus) => {
-    setSprints(
-      sprints.map((sprint) =>
-        sprint.id === sprintId
+  const setTaskStatus = (groupId: string, taskId: string, status: TaskStatus) => {
+    setGroups(
+      groups.map((group) =>
+        group.id === groupId
           ? {
-              ...sprint,
-              tasks: sprint.tasks.map((task) =>
+              ...group,
+              tasks: group.tasks.map((task) =>
                 task.id === taskId ? { ...task, status } : task
               ),
             }
-          : sprint
+          : group
       )
     )
   }
 
-  const deleteTask = (sprintId: string, taskId: string) => {
-    setSprints(
-      sprints.map((sprint) =>
-        sprint.id === sprintId
-          ? { ...sprint, tasks: sprint.tasks.filter((task) => task.id !== taskId) }
-          : sprint
+  const deleteTask = (groupId: string, taskId: string) => {
+    setGroups(
+      groups.map((group) =>
+        group.id === groupId
+          ? { ...group, tasks: group.tasks.filter((task) => task.id !== taskId) }
+          : group
       )
     )
   }
 
-  const startEditTask = (sprintId: string, task: Task, taskIndex: number) => {
-    setEditingTask({ sprintId, task, taskIndex })
+  const startEditTask = (groupId: string, task: Task, taskIndex: number) => {
+    setEditingTask({ groupId, task, taskIndex })
     setEditValues({ title: task.title, step: task.step, status: task.status })
   }
 
   const saveEditTask = () => {
     if (!editingTask || !editValues.title.trim()) return
-    setSprints(
-      sprints.map((sprint) =>
-        sprint.id === editingTask.sprintId
+    setGroups(
+      groups.map((group) =>
+        group.id === editingTask.groupId
           ? {
-              ...sprint,
-              tasks: sprint.tasks.map((task) =>
+              ...group,
+              tasks: group.tasks.map((task) =>
                 task.id === editingTask.task.id
                   ? { ...task, title: editValues.title.trim(), step: editValues.step.trim(), status: editValues.status }
                   : task
               ),
             }
-          : sprint
+          : group
       )
     )
     setEditingTask(null)
@@ -193,30 +209,67 @@ export default function TodoApp() {
     setEditValues({ title: "", step: "", status: "todo" })
   }
 
-  const moveTaskUp = (sprintId: string, taskId: string) => {
-    setSprints(
-      sprints.map((sprint) => {
-        if (sprint.id !== sprintId) return sprint
-        const index = sprint.tasks.findIndex((t) => t.id === taskId)
-        if (index <= 0) return sprint
-        const newTasks = [...sprint.tasks]
+  const moveTaskUp = (groupId: string, taskId: string) => {
+    setGroups(
+      groups.map((group) => {
+        if (group.id !== groupId) return group
+        const index = group.tasks.findIndex((t) => t.id === taskId)
+        if (index <= 0) return group
+        const newTasks = [...group.tasks]
         ;[newTasks[index - 1], newTasks[index]] = [newTasks[index], newTasks[index - 1]]
-        return { ...sprint, tasks: newTasks }
+        return { ...group, tasks: newTasks }
       })
     )
   }
 
-  const moveTaskDown = (sprintId: string, taskId: string) => {
-    setSprints(
-      sprints.map((sprint) => {
-        if (sprint.id !== sprintId) return sprint
-        const index = sprint.tasks.findIndex((t) => t.id === taskId)
-        if (index < 0 || index >= sprint.tasks.length - 1) return sprint
-        const newTasks = [...sprint.tasks]
+  const moveTaskDown = (groupId: string, taskId: string) => {
+    setGroups(
+      groups.map((group) => {
+        if (group.id !== groupId) return group
+        const index = group.tasks.findIndex((t) => t.id === taskId)
+        if (index < 0 || index >= group.tasks.length - 1) return group
+        const newTasks = [...group.tasks]
         ;[newTasks[index], newTasks[index + 1]] = [newTasks[index + 1], newTasks[index]]
-        return { ...sprint, tasks: newTasks }
+        return { ...group, tasks: newTasks }
       })
     )
+  }
+
+  // Import/Export functions
+  const exportData = () => {
+    const data = JSON.stringify(groups, null, 2)
+    const blob = new Blob([data], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `tarefas-${new Date().toISOString().split("T")[0]}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const importData = () => {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = ".json"
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        try {
+          const imported = JSON.parse(event.target?.result as string) as TaskGroup[]
+          if (Array.isArray(imported)) {
+            setGroups(imported)
+          }
+        } catch {
+          alert("Erro ao importar arquivo. Verifique se o formato esta correto.")
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
   }
 
   // Helpers
@@ -226,7 +279,7 @@ export default function TodoApp() {
   }
 
   const getTotalStats = () => {
-    const allTasks = sprints.flatMap((s) => s.tasks)
+    const allTasks = groups.flatMap((g) => g.tasks)
     const completed = allTasks.filter((t) => t.status === "done").length
     return { total: allTasks.length, completed }
   }
@@ -266,69 +319,112 @@ export default function TodoApp() {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground">
-              <Zap className="h-4 w-4 text-background" />
+              <FolderOpen className="h-4 w-4 text-background" />
             </div>
-            <h1 className="text-lg font-semibold tracking-tight">Sprints</h1>
+            <h1 className="text-lg font-semibold tracking-tight">Grupo de Tarefas</h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {stats.total > 0 && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="font-mono">{stats.completed}/{stats.total}</span>
                 <span>tasks</span>
               </div>
             )}
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+                onClick={importData}
+                title="Importar dados"
+              >
+                <Upload className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+                onClick={exportData}
+                title="Exportar dados"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
             <Button 
-              onClick={openSprintDialog} 
+              onClick={openGroupDialog} 
               className="h-9 px-4 bg-foreground text-background hover:bg-foreground/90"
             >
               <Plus className="mr-2 h-4 w-4" />
-              Nova Sprint
+              Novo Grupo
             </Button>
           </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-3xl px-6 py-8">
-        {/* Lista de sprints */}
+        {/* Lista de grupos */}
         <div className="space-y-4">
-          {sprints.map((sprint) => {
-            const progress = getProgress(sprint.tasks)
-            const completedCount = sprint.tasks.filter((t) => t.status === "done").length
+          {groups.map((group, groupIndex) => {
+            const progress = getProgress(group.tasks)
+            const completedCount = group.tasks.filter((t) => t.status === "done").length
 
             return (
               <div 
-                key={sprint.id} 
-                className="overflow-hidden rounded-lg border border-border bg-card"
+                key={group.id} 
+                className="group/card overflow-hidden rounded-lg border border-border bg-card"
               >
-                {/* Sprint Header */}
+                {/* Group Header */}
                 <div className="border-b border-border px-4 py-3">
                   <div className="flex items-center justify-between">
-                    <button
-                      className="flex items-center gap-3 text-left"
-                      onClick={() => toggleCollapse(sprint.id)}
-                    >
-                      <div className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground">
-                        {sprint.collapsed ? (
-                          <ChevronRight className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
+                    <div className="flex items-center gap-2">
+                      {/* Group order buttons */}
+                      <div className="flex flex-col opacity-0 transition-opacity group-hover/card:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          onClick={() => moveGroupUp(group.id)}
+                          disabled={groupIndex === 0}
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          onClick={() => moveGroupDown(group.id)}
+                          disabled={groupIndex === groups.length - 1}
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <span className="font-medium">{sprint.name}</span>
-                      <span className="rounded bg-secondary px-2 py-0.5 text-xs font-mono text-secondary-foreground">
-                        {completedCount}/{sprint.tasks.length}
-                      </span>
-                    </button>
+                      <button
+                        className="flex items-center gap-3 text-left"
+                        onClick={() => toggleCollapse(group.id)}
+                      >
+                        <div className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground">
+                          {group.collapsed ? (
+                            <ChevronRight className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </div>
+                        <span className="font-medium">{group.name}</span>
+                        <span className="rounded bg-secondary px-2 py-0.5 text-xs font-mono text-secondary-foreground">
+                          {completedCount}/{group.tasks.length}
+                        </span>
+                      </button>
+                    </div>
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
-                        {sprint.createdAt}
+                        {group.createdAt}
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => deleteSprint(sprint.id)}
+                        onClick={() => deleteGroup(group.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -344,12 +440,12 @@ export default function TodoApp() {
                   </div>
                 </div>
 
-                {!sprint.collapsed && (
+                {!group.collapsed && (
                   <div className="p-4">
                     {/* Lista de tasks */}
-                    {sprint.tasks.length > 0 && (
+                    {group.tasks.length > 0 && (
                       <div className="mb-4 divide-y divide-border">
-                        {sprint.tasks.map((task, taskIndex) => {
+                        {group.tasks.map((task, taskIndex) => {
                           const taskNumber = String(taskIndex + 1).padStart(2, "0")
                           
                           return (
@@ -365,7 +461,7 @@ export default function TodoApp() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                                  onClick={() => moveTaskUp(sprint.id, task.id)}
+                                  onClick={() => moveTaskUp(group.id, task.id)}
                                   disabled={taskIndex === 0}
                                 >
                                   <ChevronUp className="h-3 w-3" />
@@ -374,8 +470,8 @@ export default function TodoApp() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-5 w-5 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                                  onClick={() => moveTaskDown(sprint.id, task.id)}
-                                  disabled={taskIndex === sprint.tasks.length - 1}
+                                  onClick={() => moveTaskDown(group.id, task.id)}
+                                  disabled={taskIndex === group.tasks.length - 1}
                                 >
                                   <ChevronDown className="h-3 w-3" />
                                 </Button>
@@ -398,21 +494,21 @@ export default function TodoApp() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start" className="w-36">
                                   <DropdownMenuItem 
-                                    onClick={() => setTaskStatus(sprint.id, task.id, "todo")}
+                                    onClick={() => setTaskStatus(group.id, task.id, "todo")}
                                     className="flex items-center gap-2"
                                   >
                                     <Circle className="h-4 w-4 text-muted-foreground" />
                                     A fazer
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
-                                    onClick={() => setTaskStatus(sprint.id, task.id, "doing")}
+                                    onClick={() => setTaskStatus(group.id, task.id, "doing")}
                                     className="flex items-center gap-2"
                                   >
                                     <Clock className="h-4 w-4 text-amber-500" />
                                     Fazendo
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
-                                    onClick={() => setTaskStatus(sprint.id, task.id, "done")}
+                                    onClick={() => setTaskStatus(group.id, task.id, "done")}
                                     className="flex items-center gap-2"
                                   >
                                     <CheckCircle2 className="h-4 w-4 text-[oklch(0.72_0.19_145)]" />
@@ -445,7 +541,7 @@ export default function TodoApp() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                                  onClick={() => startEditTask(sprint.id, task, taskIndex)}
+                                  onClick={() => startEditTask(group.id, task, taskIndex)}
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
@@ -453,7 +549,7 @@ export default function TodoApp() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                  onClick={() => deleteTask(sprint.id, task.id)}
+                                  onClick={() => deleteTask(group.id, task.id)}
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
@@ -468,7 +564,7 @@ export default function TodoApp() {
                     <Button
                       variant="outline"
                       className="w-full h-10 border-dashed text-muted-foreground hover:text-foreground hover:border-foreground/30"
-                      onClick={() => openTaskDialog(sprint.id)}
+                      onClick={() => openTaskDialog(group.id)}
                     >
                       <Plus className="mr-2 h-4 w-4" />
                       Adicionar Task
@@ -479,55 +575,55 @@ export default function TodoApp() {
             )
           })}
 
-          {sprints.length === 0 && (
+          {groups.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
-                <Zap className="h-5 w-5 text-muted-foreground" />
+                <FolderOpen className="h-5 w-5 text-muted-foreground" />
               </div>
-              <p className="text-sm text-muted-foreground">Nenhuma sprint criada</p>
+              <p className="text-sm text-muted-foreground">Nenhum grupo criado</p>
               <p className="mt-1 text-xs text-muted-foreground/70">
-                Crie uma sprint para organizar suas tasks
+                Crie um grupo para organizar suas tasks
               </p>
               <Button 
-                onClick={openSprintDialog} 
+                onClick={openGroupDialog} 
                 className="mt-4 bg-foreground text-background hover:bg-foreground/90"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Criar Sprint
+                Criar Grupo
               </Button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Create Sprint Dialog */}
-      <Dialog open={sprintDialogOpen} onOpenChange={setSprintDialogOpen}>
+      {/* Create Group Dialog */}
+      <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Nova Sprint</DialogTitle>
+            <DialogTitle>Novo Grupo de Tarefas</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Nome da Sprint</label>
+              <label className="text-sm font-medium">Nome do Grupo</label>
               <Input
-                value={newSprintName}
-                onChange={(e) => setNewSprintName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addSprint()}
-                placeholder="Ex: Sprint 1 - Autenticacao"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addGroup()}
+                placeholder="Ex: Autenticacao, Frontend, Backend..."
                 autoFocus
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSprintDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setGroupDialogOpen(false)}>
               Cancelar
             </Button>
             <Button 
-              onClick={addSprint}
-              disabled={!newSprintName.trim()}
+              onClick={addGroup}
+              disabled={!newGroupName.trim()}
               className="bg-foreground text-background hover:bg-foreground/90"
             >
-              Criar Sprint
+              Criar Grupo
             </Button>
           </DialogFooter>
         </DialogContent>
