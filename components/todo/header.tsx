@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Plus, Upload, Download, FolderOpen } from "lucide-react"
+import { Plus, Upload, Download, FolderOpen, ListTodo } from "lucide-react"
 
 interface HeaderProps {
   stats: { total: number; completed: number }
@@ -16,7 +16,7 @@ export function Header({ stats, onImport, onExport, onNewGroup }: HeaderProps) {
       <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground">
-            <FolderOpen className="h-4 w-4 text-background" />
+            <ListTodo className="h-4 w-4 text-background" />
           </div>
           <h1 className="text-lg font-semibold tracking-tight">Todo</h1>
         </div>
