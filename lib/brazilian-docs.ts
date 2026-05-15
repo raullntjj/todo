@@ -152,3 +152,28 @@ export function generateCNH(withMask = true): string {
   }
   return cnh
 }
+
+// Format functions for applying masks to raw numbers
+export function formatCPF(cpf: string): string {
+  const cleaned = cpf.replace(/\D/g, "").slice(0, 11)
+  if (cleaned.length !== 11) return cpf
+  return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9)}`
+}
+
+export function formatCNPJ(cnpj: string): string {
+  const cleaned = cnpj.replace(/\D/g, "").slice(0, 14)
+  if (cleaned.length !== 14) return cnpj
+  return `${cleaned.slice(0, 2)}.${cleaned.slice(2, 5)}.${cleaned.slice(5, 8)}/${cleaned.slice(8, 12)}-${cleaned.slice(12)}`
+}
+
+export function formatCNS(cns: string): string {
+  const cleaned = cns.replace(/\D/g, "").slice(0, 15)
+  if (cleaned.length !== 15) return cns
+  return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 7)} ${cleaned.slice(7, 11)} ${cleaned.slice(11)}`
+}
+
+export function formatCNH(cnh: string): string {
+  const cleaned = cnh.replace(/\D/g, "").slice(0, 11)
+  if (cleaned.length !== 11) return cnh
+  return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 9)} ${cleaned.slice(9)}`
+}
