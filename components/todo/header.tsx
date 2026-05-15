@@ -8,18 +8,21 @@ interface HeaderProps {
   onImport: () => void
   onExport: () => void
   onNewGroup: () => void
+  embedded?: boolean
 }
 
-export function Header({ stats, onImport, onExport, onNewGroup }: HeaderProps) {
+export function Header({ stats, onImport, onExport, onNewGroup, embedded }: HeaderProps) {
   return (
-    <header className="border-b border-border">
-      <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground">
-            <ListTodo className="h-4 w-4 text-background" />
+    <header className={embedded ? "" : "border-b border-border"}>
+      <div className={`flex items-center justify-between ${embedded ? "" : "mx-auto max-w-3xl px-6 py-4"}`}>
+        {!embedded && (
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground">
+              <ListTodo className="h-4 w-4 text-background" />
+            </div>
+            <h1 className="text-lg font-semibold tracking-tight">Todo</h1>
           </div>
-          <h1 className="text-lg font-semibold tracking-tight">Todo</h1>
-        </div>
+        )}
         <div className="flex items-center gap-3">
           {stats.total > 0 && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
