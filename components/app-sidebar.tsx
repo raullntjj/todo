@@ -13,6 +13,8 @@ import {
   Hash,
   Database,
   Wrench,
+  Code,
+  Sparkles,
 } from "lucide-react"
 import {
   Sidebar,
@@ -75,6 +77,16 @@ const tools = [
     title: "SQL Beautifier",
     url: "/tools/sql-beautifier",
     icon: Database,
+  },
+  {
+    title: "Code Formatter",
+    url: "/tools/code-formatter",
+    icon: Code,
+  },
+  {
+    title: "Generator Suite",
+    url: "/tools/generator",
+    icon: Sparkles,
   },
 ]
 
