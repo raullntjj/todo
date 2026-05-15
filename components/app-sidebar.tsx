@@ -15,6 +15,7 @@ import {
   Wrench,
   Code,
   Sparkles,
+  FileJson,
 } from "lucide-react"
 import {
   Sidebar,
@@ -87,6 +88,11 @@ const tools = [
     title: "Generator Suite",
     url: "/tools/generator",
     icon: Sparkles,
+  },
+  {
+    title: "JSON Master Explorer",
+    url: "/tools/json-explorer",
+    icon: FileJson,
   },
 ]
 
