@@ -1,5 +1,5 @@
-import { TodoList } from "@/components/tools/todo-list"
+import { Dashboard } from "@/components/dashboard"
 
 export default function HomePage() {
-  return <TodoList />
+  return <Dashboard />
 }
